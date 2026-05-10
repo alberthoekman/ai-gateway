@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  ai-gateway:
+    build: .
+    container_name: ai-gateway
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - STRICT_MODE=true
+      - PORT=5000
+      - DEBUG=false
+      - DATABASE_PATH=/app/data/audit_logs.db
+      # Optional: Enable OpenAI by setting these (or use .env file)
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - AI_MODEL=gpt-3.5-turbo
+    env_file:
+      - .env  # Load from .env if it exists (optional)
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s

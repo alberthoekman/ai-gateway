@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Gateway - RIVM</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <div class="logo-placeholder">RIVM</div>
+                <h1>Verantwoorde AI Gateway</h1>
+            </div>
+            <p class="subtitle">Beveiligde AI-analyse met AVG/GDPR compliance</p>
+        </header>
+
+        <div class="main-content">
+            <div class="info-banner">
+                <span class="info-icon">[i]</span>
+                <div class="info-text">
+                    <strong>Privacy eerst:</strong> Alle invoer wordt gescand op persoonlijke gegevens
+                    (BSN, telefoonnummers, IBAN) voordat deze wordt verwerkt.
+                </div>
+            </div>
+
+            <div class="input-section">
+                <label for="userInput" class="input-label">
+                    Voer uw tekst in voor analyse
+                </label>
+                <textarea
+                    id="userInput"
+                    class="input-textarea"
+                    placeholder="Typ hier uw vraag of tekst voor analyse..."
+                    maxlength="10000"
+                    rows="6"
+                ></textarea>
+                <div class="input-meta">
+                    <span id="charCount" class="char-count">0 / 10,000 karakters</span>
+                </div>
+            </div>
+
+            <div class="button-section">
+                <button id="analyzeBtn" class="btn btn-primary">
+                    <span class="btn-icon">[&gt;]</span>
+                    Analyseer Tekst
+                </button>
+                <button id="clearBtn" class="btn btn-secondary">
+                    <span class="btn-icon">[x]</span>
+                    Wissen
+                </button>
+            </div>
+
+            <div id="loadingIndicator" class="loading-indicator" style="display: none;">
+                <div class="spinner"></div>
+                <span>Analyseren... (PII-scan + AI-verwerking)</span>
+            </div>
+
+            <div id="resultSection" class="result-section" style="display: none;">
+                <h2 class="section-title">Resultaat</h2>
+                <div id="resultContent" class="result-content"></div>
+            </div>
+
+            <div id="safetySection" class="safety-section" style="display: none;">
+                <h2 class="section-title">
+                    <span class="shield-icon">[#]</span>
+                    Privacy & Veiligheid Rapport
+                </h2>
+                <div id="safetyContent" class="safety-content"></div>
+            </div>
+
+            <div id="errorSection" class="error-section" style="display: none;">
+                <div class="error-content">
+                    <span class="error-icon">[!]</span>
+                    <div id="errorMessage"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Over deze Gateway</h3>
+                    <p>Ontwikkeld volgens AVG/GDPR richtlijnen voor veilig AI-gebruik binnen de publieke sector.</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Functies</h3>
+                    <ul>
+                        <li>✓ PII Filtering (BSN, telefoonnummers, IBAN)</li>
+                        <li>✓ Audit Logging voor compliance</li>
+                        <li>✓ Transparante veiligheidsrapportage</li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h3>Status</h3>
+                    <div id="systemStatus" class="system-status">
+                        <span class="status-indicator"></span>
+                        <span>Checking...</span>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
