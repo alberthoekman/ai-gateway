@@ -1,419 +1,182 @@
-# 🛡️ AI Gateway - Verantwoorde AI voor de Publieke Sector
+# AI Gateway - Responsible AI with PII Protection
 
-Een **beveiligde Flask-gebaseerde API gateway** die fungeert als een transparante en auditable brug tussen gebruikers en Large Language Models (LLMs), specifiek ontworpen voor **RIVM** en andere Nederlandse overheidsinstanties.
+A secure Flask-based API gateway that acts as a transparent, auditable bridge between users and Large Language Models (LLMs), with built-in PII filtering and GDPR compliance.
 
----
+## Features
 
-## 🎯 Projectdoelen
+- **PII Detection & Blocking**: Automatically detects and blocks sensitive Dutch data (BSN numbers, phone numbers, IBAN) before they reach the AI
+- **Audit Logging**: Every request is logged to SQLite database with metadata for compliance audits
+- **OpenAI Integration**: Supports real LLM analysis via OpenAI API with automatic fallback to mock mode for testing
+- **Safety Reports**: Each API response includes a transparency report showing what privacy checks were performed
+- **Type Safe**: Full Python type hints for better code quality
+- **Docker Ready**: Production-ready containerization with health checks
+- **Clean Code**: Follows PEP8 standards with comprehensive error handling
 
-Deze Proof of Concept (POC) demonstreert hoe **Verantwoorde AI** (Responsible AI) kan worden geïmplementeerd binnen een overheidscontext, met speciale aandacht voor:
+## Quick Start
 
-1. **Privacy & AVG/GDPR Compliance**: Automatische detectie en blokkering van persoonlijke gegevens (BSN, telefoonnummers, IBAN, postcodes, e-mails) voordat deze een LLM bereiken.
-2. **Auditability**: Alle verzoeken worden gelogd in een SQLite-database voor compliance-audits en incident-analyse.
-3. **Transparantie**: Elke API-response bevat een "Safety Report" die laat zien welke privacy-controles zijn uitgevoerd.
-4. **Betrouwbaarheid**: Gestructureerde error handling, type hinting, en PEP8-conforme code.
-5. **Containerization**: Production-ready Dockerfile voor snelle deployment.
+### Installation
 
----
-
-## 🏗️ Architectuur
-
-```
-┌─────────────┐
-│   Frontend  │  (HTML/jQuery)
-│  index.html │
-└──────┬──────┘
-       │ POST /analyze
-       ▼
-┌──────────────────────────────────────┐
-│         Flask API Gateway            │
-│  ┌────────────────────────────────┐  │
-│  │  1. PII Validator (validator.py)│  │  ◄── BSN 11-proof test
-│  │     - BSN detection             │  │  ◄── Regex voor NL data
-│  │     - Phone number scanning     │  │
-│  │     - IBAN, email, postcode     │  │
-│  └──────────┬─────────────────────┘  │
-│             │ if PII: Block (403)    │
-│             ▼                         │
-│  ┌────────────────────────────────┐  │
-│  │  2. AI Service (OpenAI/Mock)   │  │  ◄── Real or simulated
-│  │     - OpenAI GPT-3.5/4         │  │      (auto-switches)
-│  │     - Or Mock for testing      │  │
-│  └──────────┬─────────────────────┘  │
-│             ▼                         │
-│  ┌────────────────────────────────┐  │
-│  │  3. SQLite Audit Logger        │  │  ◄── Timestamp, input length,
-│  │     - Request metadata         │  │      PII violations, status
-│  │     - Compliance tracking      │  │
-│  └────────────────────────────────┘  │
-└──────────────────────────────────────┘
-       │
-       ▼
-   Response + Safety Report
+1. Clone the repository:
+```bash
+cd ai-gateway
 ```
 
----
-
-## 📁 Project Structuur
-
-```
-ai-gateway/
-├── app.py                    # Flask backend met audit logging
-├── src/
-│   └── validator.py          # PII detectie en filtering (BSN, telefoon, IBAN)
-├── templates/
-│   └── index.html            # Frontend (jQuery, government-style CSS)
-├── static/
-│   ├── css/
-│   │   └── style.css         # Professionele blue/white styling
-│   └── js/
-│       └── app.js            # jQuery AJAX voor API calls
-├── tests/                    # Unit tests (voor toekomstige uitbreiding)
-├── requirements.txt          # Python dependencies
-├── Dockerfile                # Multi-stage build voor productie
-├── .dockerignore             # Docker build optimalisatie
-└── README.md                 # Deze file
+2. Create and activate virtual environment:
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
 ```
 
----
-
-## 🔒 Verantwoorde AI Features
-
-### 1. **PII Filtering (Privacy First)**
-
-De `PIIValidator` in `validator.py` detecteert:
-
-| Data Type | Detectie Methode | Actie |
-|-----------|------------------|-------|
-| **BSN** | Regex + 11-proof validatie | ❌ Blokkeer verzoek (403) |
-| **Telefoonnummers** | NL-formats (+31, 06, 0031) | ❌ Blokkeer verzoek |
-| **IBAN** | Dutch IBAN pattern (NL...) | ❌ Blokkeer verzoek |
-| **Postcodes** | 1234 AB format | ⚠️ Optioneel (strict_mode) |
-| **E-mails** | RFC-compliant regex | ⚠️ Optioneel (strict_mode) |
-
-**Voorbeeld:**
-```python
-validator = PIIValidator(strict_mode=True)
-is_safe, detections, sanitized = validator.validate("Mijn BSN is 111222333")
-# is_safe = False
-# detections = [PIIDetection(type="BSN", value="11...33", position=11)]
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-### 2. **Audit Logging (Accountability)**
+4. Run the application:
+```bash
+python app.py
+```
 
-Elke request wordt gelogd in `audit_logs.db`:
+The application will start at `http://localhost:5000`
+
+### Test It Out
+
+**Safe input (should return AI analysis):**
+```bash
+curl -X POST http://localhost:5000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "What is the weather today?"}'
+```
+
+**Blocked input (contains BSN):**
+```bash
+curl -X POST http://localhost:5000/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"text": "My BSN is 111222333"}'
+```
+
+Expected response: 403 Forbidden with safety report.
+
+## Configuration
+
+Set environment variables to customize behavior:
+
+```bash
+# Enable OpenAI (get key from https://platform.openai.com/api-keys)
+export OPENAI_API_KEY="sk-your-key-here"
+export AI_MODEL="gpt-3.5-turbo"  # default, or use gpt-4
+
+# Application settings
+export PORT=5000
+export DEBUG=false
+export STRICT_MODE=true  # Also filter emails and postal codes
+export DATABASE_PATH=data/audit_logs.db
+```
+
+## Docker
+
+Build and run with Docker:
+
+```bash
+# Build image
+docker build -t ai-gateway:latest .
+
+# Run container
+docker run -d \
+  -p 5000:5000 \
+  -v $(pwd)/data:/app/data \
+  -e STRICT_MODE=true \
+  ai-gateway:latest
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+## Database
+
+The application uses SQLite for audit logging with the following schema:
 
 ```sql
 CREATE TABLE request_logs (
-    id INTEGER PRIMARY KEY,
-    timestamp TEXT,
-    input_length INTEGER,
-    pii_detected BOOLEAN,
-    violations_count INTEGER,
-    status_code INTEGER,
-    processing_time_ms REAL,
-    client_ip TEXT,
-    user_agent TEXT
-);
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT NOT NULL,             -- Request timestamp (ISO 8601)
+    input_length INTEGER NOT NULL,       -- Number of characters in input
+    pii_detected BOOLEAN NOT NULL,       -- Whether PII was found (0/1)
+    violations_count INTEGER NOT NULL,   -- Number of PII violations
+    status_code INTEGER NOT NULL,        -- HTTP response code (200/403/500)
+    processing_time_ms REAL,             -- Request processing duration
+    client_ip TEXT,                      -- User's IP address
+    user_agent TEXT                      -- Client browser/app info
+)
 ```
 
-**Use cases:**
-- Compliance audits (AVG artikel 30: register van verwerkingsactiviteiten)
-- Incident analyse (welke verzoeken werden geblokkeerd?)
-- Performance monitoring (gemiddelde verwerkingstijd)
+This logging ensures compliance with GDPR Article 30 (record of processing activities) by:
+- Tracking all requests for audit purposes
+- Recording only metadata (not user input content)
+- Enabling security incident investigation
+- Providing performance monitoring
 
-### 3. **Transparantie (Trust)**
-
-Elke API response bevat een **Safety Report**:
-
-```json
-{
-  "status": "success",
-  "result": "AI analyse...",
-  "safety_report": {
-    "scan_performed": true,
-    "pii_detected": false,
-    "violations_count": 0,
-    "compliance_notes": "Gecontroleerd volgens AVG/GDPR richtlijnen",
-    "strict_mode": true
-  }
-}
-```
-
-Als PII wordt gedetecteerd:
-```json
-{
-  "status": "blocked",
-  "message": "Persoonlijke gegevens gedetecteerd...",
-  "safety_report": {
-    "violations": [
-      {
-        "type": "BSN (Burgerservicenummer)",
-        "masked_value": "11...33",
-        "position": 15
-      }
-    ]
-  }
-}
-```
-
----
-
-## 🚀 Quick Start
-
-### Lokaal draaien (zonder Docker)
-
-1. **Clone het project:**
-   ```bash
-   cd ai-gateway
-   ```
-
-2. **Installeer dependencies:**
-   ```bash
-   python3 -m venv venv
-   source venv/bin/activate  # Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. **(Optional) Configure OpenAI for real AI:**
-   ```bash
-   # Copy the example config
-   cp .env.example .env
-   
-   # Edit .env and add your OpenAI API key
-   # OPENAI_API_KEY=sk-your-key-here
-   
-   # Without API key, uses mock AI (perfect for testing!)
-   ```
-   
-   **See [OPENAI_SETUP.md](OPENAI_SETUP.md) for detailed instructions.**
-
-4. **Start de applicatie:**
-   ```bash
-   python app.py
-   ```
-
-5. **Open in browser:**
-   ```
-   http://localhost:5000
-   ```
-
-### Met Docker (Aanbevolen)
-
-1. **Build de image:**
-   ```bash
-   docker build -t ai-gateway:latest .
-   ```
-
-2. **Run de container:**
-   ```bash
-   docker run -d \
-     --name ai-gateway \
-     -p 5000:5000 \
-     -v $(pwd)/data:/app/data \
-     -e STRICT_MODE=true \
-     ai-gateway:latest
-   ```
-
-3. **Check health:**
-   ```bash
-   curl http://localhost:5000/health
-   ```
-
----
-
-## 🧪 Testen
-
-### Test PII Detectie
-
-**Positieve test (veilig):**
+Query examples:
 ```bash
-curl -X POST http://localhost:5000/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Wat is het weer vandaag in Nederland?"}'
+# View all blocked requests
+sqlite3 data/audit_logs.db "SELECT * FROM request_logs WHERE pii_detected = 1;"
+
+# Get statistics
+sqlite3 data/audit_logs.db "SELECT COUNT(*) as total, SUM(pii_detected) as blocked FROM request_logs;"
+
+# Check API health
+curl http://localhost:5000/health
+curl http://localhost:5000/stats
 ```
 
-**Negatieve test (BSN detectie):**
+## How It Works
+
+1. User submits text via POST `/analyze`
+2. PII Validator scans for sensitive Dutch data (BSN, phone, IBAN, etc.)
+3. If PII found: request blocked (403), safety report returned
+4. If clean: text sent to AI service (OpenAI or mock)
+5. Response includes AI result + safety report
+6. All metadata logged to database for audit trail
+
+## Project Structure
+
+```
+ai-gateway/
+├── app.py                    # Flask application and database manager
+├── src/
+│   ├── validator.py          # PII detection logic
+│   └── ai_service.py         # OpenAI integration
+├── templates/
+│   └── index.html            # Web interface
+├── static/
+│   ├── css/style.css         # Professional styling
+│   └── js/app.js             # Frontend logic
+├── tests/
+│   └── test_validator.py     # Unit tests
+├── requirements.txt          # Python dependencies
+├── Dockerfile                # Container configuration
+└── docker-compose.yml        # Docker Compose setup
+```
+
+## Development
+
+Run tests:
 ```bash
-curl -X POST http://localhost:5000/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Mijn BSN is 111222333"}' 
-# Expected: 403 Forbidden met Safety Report
+pytest tests/test_validator.py -v
 ```
 
-**Test telefoonnummer:**
+Check code quality:
 ```bash
-curl -X POST http://localhost:5000/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Bel me op 0612345678"}'
-# Expected: 403 Forbidden
+# Type hints
+python3 -m mypy app.py src/
+
+# Style
+flake8 app.py src/ tests/
 ```
 
-### Unit Tests (Future Work)
+## Notes
 
-```bash
-# Installeer pytest
-pip install pytest pytest-cov
-
-# Run tests
-pytest tests/ --cov=src --cov-report=html
-```
-
----
-
-## 📊 API Endpoints
-
-### `POST /analyze`
-
-**Input:**
-```json
-{
-  "text": "De tekst om te analyseren"
-}
-```
-
-**Output (Success):**
-```json
-{
-  "status": "success",
-  "result": "AI analyse resultaat...",
-  "safety_report": { ... },
-  "processing_time_ms": 45.2,
-  "timestamp": "2024-01-15T10:30:00Z"
-}
-```
-
-**Output (PII Detected):**
-```json
-{
-  "status": "blocked",
-  "message": "Persoonlijke gegevens gedetecteerd...",
-  "safety_report": {
-    "pii_detected": true,
-    "violations": [ ... ]
-  }
-}
-```
-
-### `GET /health`
-
-**Output:**
-```json
-{
-  "status": "healthy",
-  "database": "connected",
-  "audit_stats": {
-    "total_requests": 152,
-    "blocked_requests": 8,
-    "avg_processing_time_ms": 42.5
-  }
-}
-```
-
-### `GET /stats`
-
-**Output:**
-```json
-{
-  "total_requests": 152,
-  "blocked_requests": 8,
-  "avg_processing_time_ms": 42.5,
-  "total_violations": 12
-}
-```
-
----
-
-## 🔐 AVG/GDPR Compliance
-
-Deze POC adresseert de volgende GDPR/AVG principes:
-
-| GDPR Principe | Implementatie |
-|---------------|---------------|
-| **Data Minimization** (Art. 5.1.c) | PII wordt **nooit** naar de AI gestuurd; detectie + blokkering vooraf |
-| **Purpose Limitation** (Art. 5.1.b) | Audit logs bevatten alleen metadata (geen content), voor compliance doeleinden |
-| **Accuracy** (Art. 5.1.d) | BSN validatie met 11-proof test (geen false positives) |
-| **Accountability** (Art. 5.2) | Volledige audit trail in SQLite database |
-| **Transparency** (Art. 12) | Safety Reports laten gebruikers zien dat hun data is gecontroleerd |
-| **Security** (Art. 32) | Type hinting, error handling, non-root Docker user |
-
----
-
-## 🎨 Frontend Design
-
-De frontend volgt **Nederlandse overheids-richtlijnen**:
-
-- **Kleuren**: Blauw (#0077C8) en wit (toegankelijkheid)
-- **Typografie**: Segoe UI (professioneel, leesbaar)
-- **Responsive**: Mobile-first design met CSS Grid
-- **Toegankelijkheid**: WCAG 2.1 AA-compliant (contrast ratios, focus states)
-- **Interactie**: Real-time character count, loading spinners, status indicators
-
----
-
-## 🔄 Roadmap / Toekomstige Uitbreidingen
-
-1. **Echte LLM Integratie**:
-   - OpenAI GPT-4 API
-   - Azure OpenAI (voor on-premises compliance)
-   - Claude API (Anthropic)
-
-2. **Geavanceerde PII Detectie**:
-   - Named Entity Recognition (NER) met spaCy/Hugging Face
-   - Contextual PII (bijv. "mijn moeder heet [NAAM]")
-
-3. **Rate Limiting**:
-   - Per-IP throttling met Redis
-   - JWT-based authentication
-
-4. **Monitoring**:
-   - Prometheus metrics export
-   - Grafana dashboards
-   - Sentry error tracking
-
-5. **Multi-tenancy**:
-   - Per-organisatie API keys
-   - Gescheiden audit logs per tenant
-
-6. **DPIA Integration**:
-   - Automatische Data Protection Impact Assessment rapportage
-
----
-
-## 🤝 Waarom deze POC past bij RIVM
-
-1. **Compliance-first**: AVG/GDPR is niet "nice-to-have" maar het **startpunt** van het design
-2. **Transparantie**: Safety Reports bieden inzicht in AI-beslissingen (conform RIVM's wetenschappelijke waarden)
-3. **Auditability**: Volledige traceerbaarheid van verzoeken (essentieel voor publieke sector)
-4. **Production-ready**: Dockerfile, health checks, structured logging → kan vandaag nog gedeployed
-5. **Extensible**: Mock AI service kan vervangen worden door GPT-4/Claude zonder architectuurwijzigingen
-
----
-
-## 📝 Code Kwaliteit
-
-- ✅ **Type hinting** (Python 3.11+): Alle functies hebben typed parameters en return values
-- ✅ **PEP8**: Code volgt Python style guide (verified met `flake8`)
-- ✅ **Docstrings**: Elke class/functie heeft documentatie
-- ✅ **Error handling**: Try-except blocks met specifieke HTTP status codes (400, 403, 500)
-- ✅ **Security**: Non-root Docker user, input validation, SQL injection prevention (parameterized queries)
-- ✅ **Modulariteit**: Scheiding tussen validator, database manager, en AI service
-
----
-
-## 📞 Contact & Vragen
-
-Voor vragen over deze POC:
-- **Technische details**: Zie code comments in `app.py` en `validator.py`
-- **Deployment**: Zie Dockerfile en Docker Compose voorbeelden
-- **RIVM-specifieke aanpassingen**: Deze POC is gemakkelijk uit te breiden met org-specifieke requirements
-
----
-
-## 📄 Licentie
-
-Deze POC is ontwikkeld als onderdeel van een sollicitatieprocedure voor **RIVM - AI Programmer** positie.
-
----
-
-**Gebouwd met ❤️ voor Verantwoorde AI in de publieke sector**
+- Database directory (`data/`) is created automatically on first run
+- Without `OPENAI_API_KEY`, the app uses mock AI (perfect for testing)
+- Audit logs contain metadata only - no user input content is stored
+- All API responses include a transparency report showing what privacy checks were performed
